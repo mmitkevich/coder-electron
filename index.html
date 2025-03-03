@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Links</title>
+    <style>
+/* Reset default margin/padding */
+* {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 90vw;       /* 3/4 of the viewport width */
+      background-color: #F8FAFC; /* Light grayish background */
+      font-family: sans-serif;   /* Update to your preferred font-family */
+    }
+
+    /* Outer container to hold the card */
+    .container {
+      background-color: #FFFFFF;         /* White card background */
+      border-radius: 8px;               /* Rounded corners */
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+      width: 100%;
+      max-width: 600px;                 /* Limit width on large screens */
+      padding: 24px;
+    }
+
+    /* Headings and text */
+    .container h1 {
+      font-size: 1.5rem;
+      color: #1E293B; /* Dark text color */
+      margin-bottom: 8px;
+    }
+
+    .container p {
+      font-size: 1rem;
+      color: #475569; /* Medium gray text color */
+      margin-bottom: 24px;
+    }
+
+    /* Form container */
+    .login-form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Input row (password + button side by side on larger screens) */
+    .field {
+      display: flex;
+      flex-direction: row;
+      width: 600px;
+      margin-bottom: 16px; /* spacing below field */
+    }
+
+    /* On small screens, stack them vertically */
+    @media (max-width: 600px) {
+      .field {
+        flex-direction: column;
+      }
+    }
+
+    /* Password input */
+    .password {
+      flex: 1;
+      padding: 16px;
+      border-radius: 6px;
+      border: 1px solid #CBD5E1; /* light gray border */
+      background-color: #F1F5F9; /* light background for input */
+      color: #0F172A;           /* dark text */
+      font-size: 1rem;
+    }
+
+    .password::placeholder {
+      color: #94A3B8; /* placeholder text color */
+    }
+
+    .password:focus {
+      outline: 2px solid #6366F1; /* highlight border on focus */
+    }
+
+    /* Submit button */
+    .submit {
+      margin-left: 16px;
+      padding: 16px 24px;
+      border: none;
+      border-radius: 6px;
+      background-color: #6366F1; /* Indigo-ish button color */
+      color: #FFFFFF;            /* White text */
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease-in-out;
+    }
+
+    /* Stacking button on small screens */
+    @media (max-width: 600px) {
+      .submit {
+        margin-left: 0;
+        margin-top: 16px;
+      }
+    }
+
+    /* Hover state for the button */
+    .submit:hover {
+      background-color: #4F46E5; /* Slightly darker Indigo */
+    }
+
+    /* Error message styling */
+    .error {
+      color: #DC2626; /* Red text */
+      margin-top: 8px;
+    }
+
+    /* Hide any element with the .user class (from your existing code) */
+    .user {
+      display: none;
+    }
+
+    /* Remove default styling from inputs in some browsers */
+    input {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    </style>
+</head>
+<body>
+    <div class="login-form">
+        <form onsubmit="openEnteredPage(); return false;">
+            <div class="field">
+                <input type="url" id="urlInput" class="password" placeholder="Enter URL..." list="history" autofocus>
+                <button type="submit" class="submit">Open</button>
+                <datalist id="history"></datalist>        
+            </div>
+        </form>  
+        <div class="error" id="errorMsg"></div>
+    </div>
+    
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            window.mainWindow.onErrorMsg((message) => {
+                console.log("onErrorMsg:",message);
+                document.getElementById('errorMsg').textContent = message;
+            });
+            try {
+                const urls = await window.mainWindow.getURLs();
+                const datalist = document.getElementById('history');
+                urls.forEach(url => {
+                    const option = document.createElement('option');
+                    option.value = url;
+                    datalist.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load URLs:', error);
+            }
+        });
+        
+        function openPage(url) {
+            console.log('open ' + url);
+            window.mainWindow.loadURL(url); // Use the API from preload.js
+        }
+
+        function openEnteredPage() {
+            let url = document.getElementById('urlInput').value;
+            if (url) {
+                openPage(url);
+            } else {
+                document.getElementById('errorMsg').textContent = 'Please enter a valid URL.';
+            }
+        }
+    </script>
+</body>
+</html>
