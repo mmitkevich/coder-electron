@@ -147,12 +147,12 @@
     
     <script>
         window.addEventListener('DOMContentLoaded', async () => {
-            window.mainWindow.onErrorMsg((message) => {
+            window.ipc.onErrorMsg((message) => {
                 console.log("onErrorMsg:",message);
                 document.getElementById('errorMsg').textContent = message;
             });
             try {
-                const urls = await window.mainWindow.getURLs();
+                const urls = await window.ipc.getURLs();
                 const datalist = document.getElementById('history');
                 urls.forEach(url => {
                     const option = document.createElement('option');
@@ -166,7 +166,7 @@
         
         function openPage(url) {
             console.log('open ' + url);
-            window.mainWindow.loadURL(url); // Use the API from preload.js
+            window.ipc.loadURL(url); // Use the API from preload.js
         }
 
         function openEnteredPage() {

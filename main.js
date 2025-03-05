@@ -4,14 +4,22 @@ const yaml = require('js-yaml');
 const fs = require('fs')
 const os = require('os')
 // globals
-let mainWindow;
+let windows = []
 let urls = [];
-let last_url = "";
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    console.log("found second instance");
+    app.quit(); // Quit if another instance is already running
+    return;
+}
+
 
 const MAX_HISTORY = 10; // Set max history size
 
 // Ignore certificate errors
 app.commandLine.appendSwitch('ignore-certificate-errors');
+console.log("userData=",app.getPath('userData')); //# , '/custom/path/for/app1');
 
 let configPath;
 
@@ -72,9 +80,8 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 
 });
 
-
-app.on('ready', () => {
-    mainWindow = new BrowserWindow({
+function createMainWindow() {
+    wnd = new BrowserWindow({
         width: 1280,
         height: 800,
         titleBarStyle: 'hidden',
@@ -82,48 +89,79 @@ app.on('ready', () => {
             preload: path.join(__dirname, 'preload.js'), // Securely expose ipcRenderer
             contextIsolation: true, 
             enableRemoteModule: false, 
-            nodeIntegration: false
+            nodeIntegration: false,
+            //partition: 'persist:new_partition' // Use a fresh partition
         },
         ...(process.platform !== 'darwin' ? { titleBarOverlay: true } : {})
     });
-    
-    mainWindow.maximize();
-    mainWindow.loadFile(path.join(__dirname, 'index.html'));
+    windows.push(wnd);
+    // Get the unique ID of the BrowserWindow
+    const windowId = wnd.webContents.id;
+    console.log("created windowId=",windowId);
+    // Send the unique ID to the renderer process
+    wnd.webContents.once('did-finish-load', () => {
+        wnd.webContents.send('set-window-id', windowId);
+    });
+
+    wnd.maximize();
+    wnd.loadFile(path.join(__dirname, 'index.html'));
     loadConfig(configPath);
-        
+
     setInterval(() => {
-        if(mainWindow) {
-            mainWindow.title = mainWindow.title.replace(/code-server/g, last_url);
-        }
+        windows.forEach((w) => {
+            w.title = w.title.replace(/code-server/g, w.webContents.getURL());
+        });
     }, 1000);
 
-    mainWindow.on('closed', () => {
-        mainWindow = null;
+    wnd.on('closed', () => {
+        windows = windows.filter((w)=> w=!wnd);
     });
+}
+
+app.on('second-instance', (event, commandLine, workingDirectory) => {
+    console.log('second-instance requested commandLine=',commandLine);
+    // If a second instance is launched, open a new window in the existing app
+    createMainWindow();
+});
+
+app.on('ready', () => {
+   createMainWindow()
 });
 
 // Listen for page change request
-ipcMain.on('load-url', (event, url) => {
-    if (mainWindow) {
-        mainWindow.loadURL(url).then(() => {
+ipcMain.on('load-url', (event, windowId, url) => {
+    
+    wnd = windows.find(w=>w.webContents.id==windowId);
+    if (wnd) {
+        wnd.loadURL(url).then(() => {
             // Update LRU history
             urls = dedup([url, ...urls.filter(u => u !== url)]).slice(0, MAX_HISTORY);
-            last_url = url;
             saveConfig(configPath);
         }).catch(err => {
             console.error('failed: ',url, ' -- ', err);
             // Handle the error (e.g., load an error page, notify the user, etc.)
-            urls = urls.filter(u => u !== url)
+            // urls = urls.filter(u => u !== url)
             saveConfig(configPath);
-            mainWindow.loadFile(path.join(__dirname, 'index.html')).then(()=>{
-                mainWindow.webContents.send('set-error-msg', url+" Load failed. Please enter a valid URL.");            
+            wnd.loadFile(path.join(__dirname, 'index.html')).then(()=>{
+                wnd.webContents.send('set-error-msg', url+" Load failed. Please enter a valid URL.");            
             });
         });
+    } else {
+        console.log("failed to find windowId=",windowId);
     }
 });
 
 ipcMain.handle('get-urls', () => urls);
 
 app.on('window-all-closed', () => {
-    app.quit();
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
+});
+
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createMainWindow();
+    }
 });
