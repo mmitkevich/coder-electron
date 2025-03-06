@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain,Menu } = require('electron');
 const path = require('path'); 
 const yaml = require('js-yaml');
 const fs = require('fs')
@@ -94,6 +94,7 @@ function createMainWindow() {
         },
         ...(process.platform !== 'darwin' ? { titleBarOverlay: true } : {})
     });
+    initMenu();
     windows.push(wnd);
     // Get the unique ID of the BrowserWindow
     const windowId = wnd.webContents.id;
@@ -128,12 +129,136 @@ app.on('ready', () => {
    createMainWindow()
 });
 
+function initMenu() {
+    const template = [
+        {
+          label: 'File',
+          submenu: [
+            {
+              label: 'New Window',
+              accelerator: 'CmdOrCtrl+N',
+              click: () => {
+                createMainWindow();
+              }
+            },
+            {
+              label: 'Quit',
+              accelerator: 'CmdOrCtrl+Q',
+              click: () => {
+                app.quit();
+              }
+            }
+          ]
+        },
+        {
+          label: 'Edit',
+          submenu: [
+            {
+              label: 'Undo',
+              accelerator: 'CmdOrCtrl+Z',
+              role: 'undo'
+            },
+            {
+              label: 'Redo',
+              accelerator: 'CmdOrCtrl+Shift+Z',
+              role: 'redo'
+            },
+            {
+              type: 'separator'
+            },
+            {
+              label: 'Cut',
+              accelerator: 'CmdOrCtrl+X',
+              role: 'cut'
+            },
+            {
+              label: 'Copy',
+              accelerator: 'CmdOrCtrl+C',
+              role: 'copy'
+            },
+            {
+              label: 'Paste',
+              accelerator: 'CmdOrCtrl+V',
+              role: 'paste'
+            },
+            {
+              type: 'separator'
+            },
+            {
+              label: 'Select All',
+              accelerator: 'CmdOrCtrl+A',
+              role: 'selectall'
+            }
+          ]
+        },
+        {
+          label: 'View',
+          submenu: [
+            {
+              label: 'Reload',
+              accelerator: 'CmdOrCtrl+R',
+              click: () => {
+                // Handle reload logic here
+                BrowserWindow.getFocusedWindow().reload();
+              }
+            },
+            {
+              label: 'Force Reload',
+              accelerator: 'CmdOrCtrl+Shift+R',
+              click: () => {
+                // Handle force reload (clear cache and reload)
+                const win = BrowserWindow.getFocusedWindow();
+                win.webContents.reloadIgnoringCache();
+              }
+            },
+            {
+              label: 'Toggle Developer Tools',
+              accelerator: 'CmdOrCtrl+Shift+I',
+              click: () => {
+                // Handle dev tools toggle here
+                const win = BrowserWindow.getFocusedWindow();
+                win.webContents.toggleDevTools();
+              }
+            }
+          ]
+        },
+        {
+          label: 'Window',
+          submenu: [
+            {
+              label: 'Minimize',
+              role: 'minimize'
+            },
+            {
+              label: 'Close',
+              role: 'close'
+            }
+          ]
+        },
+        {
+          label: 'Help',
+          submenu: [
+            {
+              label: 'Learn More',
+              click: () => {
+                // Handle Learn More logic here
+              }
+            }
+          ]
+        }
+      ];
+    
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+}
+
 // Listen for page change request
 ipcMain.on('load-url', (event, windowId, url) => {
     
     wnd = windows.find(w=>w.webContents.id==windowId);
     if (wnd) {
         wnd.loadURL(url).then(() => {
+            wnd.webContents.send('set-window-id', windowId);
             // Update LRU history
             urls = dedup([url, ...urls.filter(u => u !== url)]).slice(0, MAX_HISTORY);
             saveConfig(configPath);
@@ -144,6 +269,8 @@ ipcMain.on('load-url', (event, windowId, url) => {
             saveConfig(configPath);
             wnd.loadFile(path.join(__dirname, 'index.html')).then(()=>{
                 wnd.webContents.send('set-error-msg', url+" Load failed. Please enter a valid URL.");            
+            }).then(()=>{
+                wnd.webContents.send('set-window-id', windowId);
             });
         });
     } else {
@@ -161,7 +288,7 @@ app.on('window-all-closed', () => {
 
 
 app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-    }
+    //if (BrowserWindow.getAllWindows().length === 0) {
+    createMainWindow();
+    //}
 });
