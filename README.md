@@ -3,7 +3,10 @@ This opens your code-server in electron app and supports URL list in ~/.config/c
 # build
 ```
 npm i -g electron electron-build
+npm run build
 ```
+
+this would build `dist/coder-VERSION-ARCH.dmg` file
 
 # debug run
 ```
