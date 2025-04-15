@@ -108,14 +108,22 @@ function createMainWindow() {
     wnd.loadFile(path.join(__dirname, 'index.html'));
     loadConfig(configPath);
 
-    setInterval(() => {
-        windows.forEach((w) => {
-            w.title = w.title.replace(/code-server/g, w.webContents.getURL());
-        });
+    const interval = setInterval(() => {
+        if (wnd.isDestroyed()) {
+          clearInterval(interval);
+          return;
+        }
+        //windows.forEach((w) => {
+        //    if (w !== undefined) {
+        //      w.title = w.title.replace(/code-server/g, w.webContents.getURL());
+        //    }
+        //});
+        wnd.title = wnd.title.replace(/code-server/g, wnd.webContents.getURL());
     }, 1000);
 
     wnd.on('closed', () => {
-        windows = windows.filter((w)=> w=!wnd);
+        windows = windows.filter((w) => w=!wnd);
+        console.log("closed ");//,wnd.webContents.id, wnd.webContents.getURL());
     });
 }
 
