@@ -109,7 +109,7 @@ function createMainWindow() {
     loadConfig(configPath);
 
     const interval = setInterval(() => {
-        if (wnd.isDestroyed()) {
+        if (wnd === undefined || wnd.isDestroyed()) {
           clearInterval(interval);
           return;
         }
@@ -263,7 +263,7 @@ function initMenu() {
 // Listen for page change request
 ipcMain.on('load-url', (event, windowId, url) => {
     
-    wnd = windows.find(w=>w.webContents.id==windowId);
+    wnd = windows.find(w=>w && w.webContents.id==windowId);
     if (wnd) {
         wnd.loadURL(url).then(() => {
             wnd.webContents.send('set-window-id', windowId);
